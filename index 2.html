@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEWER GX | Tactical Interface</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #ff003c;
+            --bg-deep: #050507;
+            --panel: rgba(15, 15, 20, 0.7);
+            --text: #ffffff;
+            --gx-glow: 0 0 20px var(--accent);
+            --glass: blur(20px) saturate(160%);
+            --transition: 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; cursor: crosshair; }
+        body { 
+            background-color: var(--bg-deep); 
+            color: var(--text); 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column;
+            font-family: 'Rajdhani', sans-serif;
+        }
+        
+        /* Tactical Loader */
+        #loader { position: fixed; width: 100%; height: 100%; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: 0.8s ease-out; }
+        .loader-logo { font-family: 'Orbitron', sans-serif; font-size: 2.5rem; font-weight: 900; color: var(--accent); text-shadow: var(--gx-glow); letter-spacing: 10px; animation: scan 2s infinite; }
+        @keyframes scan { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        canvas#bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.4; }
+
+        /* Professional Header */
+        header { 
+            height: 70px; display: flex; align-items: center; padding: 0 30px; 
+            background: rgba(0,0,0,0.8); backdrop-filter: var(--glass); 
+            border-bottom: 2px solid var(--accent); z-index: 100;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        .search-wrapper { 
+            flex: 1; margin: 0 40px; background: rgba(255,255,255,0.03); 
+            border-radius: 4px; display: flex; align-items: center; padding: 10px 20px; 
+            border-left: 3px solid var(--accent); transition: var(--transition);
+        }
+        .search-wrapper:focus-within { background: rgba(255,255,255,0.08); box-shadow: inset 0 0 10px rgba(255, 0, 60, 0.2); }
+        .search-wrapper input { background: none; border: none; color: white; width: 100%; outline: none; font-size: 16px; font-family: 'Rajdhani'; font-weight: 600; letter-spacing: 1px; }
+
+        /* Main Viewport */
+        .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 50px 20px; scrollbar-width: none; }
+        .gx-title { font-family: 'Orbitron', sans-serif; font-size: 4.5rem; font-weight: 900; letter-spacing: 15px; text-shadow: var(--gx-glow); margin-bottom: 50px; text-transform: uppercase; }
+
+        .tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 25px; width: 100%; max-width: 800px; }
+        .tile { 
+            background: var(--panel); backdrop-filter: var(--glass); border-radius: 4px; 
+            aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; text-decoration: none; color: white; 
+            border: 1px solid rgba(255,255,255,0.05); transition: var(--transition);
+            clip-path: polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%);
+        }
+        .tile:hover { transform: translateY(-10px); border-color: var(--accent); background: rgba(255, 0, 60, 0.1); box-shadow: var(--gx-glow); }
+        .tile i { font-size: 40px; margin-bottom: 15px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); }
+        .tile span { font-weight: 700; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #ccc; }
+
+        /* Popups & Panels (Same as before but stylized) */
+        .bottom-popup { position: fixed; bottom: -100%; left: 0; width: 100%; height: 75%; background: rgba(5, 5, 8, 0.98); backdrop-filter: blur(30px); border-top: 3px solid var(--accent); z-index: 1000; padding: 40px; transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .bottom-popup.active { bottom: 0; box-shadow: 0 -20px 50px rgba(0,0,0,0.8); }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; z-index: 999; backdrop-filter: blur(8px); }
+
+        .side-panel { position: fixed; top: 0; left: -100%; width: 320px; height: 100%; background: #0a0a0c; z-index: 2000; transition: 0.5s; padding: 40px 30px; border-right: 2px solid var(--accent); }
+        .side-panel.open { left: 0; }
+
+        /* Profile System */
+        .profile-section { display: none; flex-direction: column; align-items: center; gap: 20px; }
+        .avatar-ring { width: 140px; height: 140px; border: 2px solid var(--accent); border-radius: 50%; padding: 8px; position: relative; box-shadow: var(--gx-glow); }
+        .avatar-box { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #111; display: flex; align-items: center; justify-content: center; border: 1px solid #333; }
+        .user-name-tag { font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 900; color: white; text-shadow: var(--gx-glow); }
+
+        /* History Items */
+        .history-item { display: flex; align-items: center; gap: 20px; padding: 18px; background: rgba(255,255,255,0.02); border-left: 4px solid #333; margin-bottom: 12px; transition: 0.3s; }
+        .history-item:hover { border-left-color: var(--accent); background: rgba(255,255,255,0.05); transform: translateX(10px); }
+
+        /* Nav & Action Button */
+        .add-btn { position: fixed; bottom: 100px; right: 40px; width: 60px; height: 60px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #000; box-shadow: var(--gx-glow); z-index: 500; border: none; clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%); transition: 0.3s; }
+        .add-btn:hover { transform: scale(1.1) rotate(90deg); }
+
+        .bottom-nav { height: 80px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 101; }
+        .nav-link { color: #555; font-size: 24px; transition: 0.3s; display: flex; flex-direction: column; align-items: center; }
+        .nav-link.active, .nav-link:hover { color: var(--accent); text-shadow: var(--gx-glow); }
+        .nav-link span { font-size: 9px; font-weight: 800; text-transform: uppercase; margin-top: 5px; font-family: 'Orbitron'; }
+    </style>
+</head>
+<body onload="initApp()">
+
+    <div id="loader">
+        <div class="loader-logo">NEWER GX</div>
+        <p style="color: #444; letter-spacing: 5px; font-size: 10px; margin-top: 10px;">TACTICAL OS LOADING...</p>
+    </div>
+
+    <canvas id="bg-canvas"></canvas>
+    <div class="overlay" id="overlay" onclick="closePopups()"></div>
+
+    <header>
+        <i class="fa-solid fa-bars-staggered nav-link" onclick="toggleSidePanel()" style="cursor:pointer"></i>
+        <div class="search-wrapper">
+            <i class="fa-solid fa-terminal" style="color:var(--accent); font-size: 12px; margin-right: 15px;"></i>
+            <input type="text" id="searchInput" placeholder="EXECUTE SEARCH COMMAND..." onkeypress="handleSearch(event)">
+        </div>
+        <div class="nav-link" onclick="changeTheme()" style="cursor:pointer"><i class="fa-solid fa-palette"></i></div>
+    </header>
+
+    <div class="main-container">
+        <h1 class="gx-title">NEWER GX</h1>
+        <div class="tile-grid" id="mainGrid">
+            <a href="https://youtube.com" class="tile" onclick="addToHistory('YouTube', 'youtube.com')"><i class="fa-brands fa-youtube" style="color:#ff0000"></i><span>YouTube</span></a>
+            <a href="https://discord.com" class="tile" onclick="addToHistory('Discord', 'discord.com')"><i class="fa-brands fa-discord" style="color:#5865f2"></i><span>Discord</span></a>
+            <a href="https://chat.openai.com" class="tile" onclick="addToHistory('ChatGPT', 'openai.com')"><i class="fa-solid fa-brain" style="color:var(--accent)"></i><span>ChatGPT</span></a>
+            <a href="https://github.com" class="tile" onclick="addToHistory('GitHub', 'github.com')"><i class="fa-brands fa-github"></i><span>GitHub</span></a>
+        </div>
+    </div>
+
+    <div class="side-panel" id="sidePanel">
+        <h2 style="font-family:'Orbitron'; color:var(--accent); margin-bottom:40px;">GX SETTINGS</h2>
+        <div style="margin-bottom:30px">
+            <p style="font-size:12px; color:#666; margin-bottom:10px; letter-spacing:2px;">ENGINE OVERCLOCK</p>
+            <input type="range" style="width:100%; accent-color:var(--accent);">
+        </div>
+        <div style="margin-bottom:30px">
+            <p style="font-size:12px; color:#666; margin-bottom:10px; letter-spacing:2px;">DATA ENCRYPTION</p>
+            <input type="range" style="width:100%; accent-color:var(--accent);">
+        </div>
+        <button onclick="closePopups()" style="width:100%; padding:15px; background:var(--accent); border:none; font-family:'Orbitron'; font-weight:900; margin-top:30px; cursor:pointer;">APPLY CHANGES</button>
+    </div>
+
+    <div id="historyPopup" class="bottom-popup">
+        <h2 style="font-family:'Orbitron'; color:var(--accent); margin-bottom:25px;"><i class="fa-solid fa-database"></i> SYSTEM LOGS</h2>
+        <div id="historyList" style="max-height:85%; overflow-y:auto; scrollbar-width:none;"></div>
+    </div>
+
+    <div id="accountPopup" class="bottom-popup">
+        <div id="loginView">
+            <h2 style="font-family:'Orbitron'; color:var(--accent); margin-bottom:30px;">IDENTITY VERIFICATION</h2>
+            <input type="text" id="nameIn" placeholder="OPERATOR NAME" style="width:100%; padding:20px; background:rgba(255,255,255,0.05); border:1px solid #222; color:white; margin-bottom:20px; outline:none; font-family:'Orbitron'; border-left: 4px solid var(--accent);">
+            <button onclick="doLogin()" style="width:100%; padding:20px; background:var(--accent); border:none; font-family:'Orbitron'; font-weight:900; box-shadow:var(--gx-glow);">AUTHORIZE ACCESS</button>
+        </div>
+        <div id="profileView" class="profile-section">
+            <div class="avatar-ring">
+                <div class="avatar-box" onclick="document.getElementById('fIn').click()">
+                    <img id="pImg" src="" style="display:none; width:100%; height:100%; object-fit:cover;">
+                    <i id="pIco" class="fa-solid fa-user-secret" style="font-size:50px; color:var(--accent)"></i>
+                </div>
+            </div>
+            <input type="file" id="fIn" style="display:none" onchange="loadImg(this)">
+            <div class="user-name-tag" id="uName">OPERATOR</div>
+            <div style="color:var(--accent); font-weight:bold; letter-spacing:3px;">LEVEL: GX ELITE</div>
+            <button onclick="doLogout()" style="margin-top:20px; background:transparent; border: 1px solid #444; color:#666; padding:10px 30px; cursor:pointer; font-family:'Orbitron'; font-size:10px;">TERMINATE SESSION</button>
+        </div>
+    </div>
+
+    <button class="add-btn" onclick="addTile()"><i class="fa-solid fa-plus"></i></button>
+
+    <div class="bottom-nav">
+        <div class="nav-link active" onclick="closePopups()"><i class="fa-solid fa-ghost"></i><span>Home</span></div>
+        <div class="nav-link" onclick="openPopup('historyPopup')"><i class="fa-solid fa-microchip"></i><span>Logs</span></div>
+        <div class="nav-link" onclick="openPopup('accountPopup')"><i class="fa-solid fa-user-ninja"></i><span>Profile</span></div>
+    </div>
+
+    <script>
+        let hist = [];
+        
+        function initApp() {
+            // Background Particle System
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            let particles = [];
+            for(let i=0; i<100; i++) particles.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, s:Math.random()*2, v:Math.random()*0.5});
+            function animate() {
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+                particles.forEach(p => {
+                    p.y -= p.v; if(p.y<0) p.y=canvas.height;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill();
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+            setTimeout(() => { document.getElementById('loader').style.opacity='0'; setTimeout(()=>document.getElementById('loader').style.display='none', 800); }, 2000);
+        }
+
+        function openPopup(id) { closePopups(); document.getElementById(id).classList.add('active'); document.getElementById('overlay').style.display='block'; }
+        function closePopups() { document.querySelectorAll('.bottom-popup').forEach(p => p.classList.remove('active')); document.getElementById('sidePanel').classList.remove('open'); document.getElementById('overlay').style.display='none'; }
+        function toggleSidePanel() { document.getElementById('sidePanel').classList.toggle('open'); document.getElementById('overlay').style.display = document.getElementById('sidePanel').classList.contains('open') ? 'block' : 'none'; }
+
+        function doLogin() {
+            let n = document.getElementById('nameIn').value;
+            if(!n) return;
+            document.getElementById('uName').innerText = n.toUpperCase();
+            document.getElementById('loginView').style.display='none';
+            document.getElementById('profileView').style.display='flex';
+        }
+        function doLogout() { document.getElementById('loginView').style.display='block'; document.getElementById('profileView').style.display='none'; }
+
+        function loadImg(i) {
+            let r = new FileReader();
+            r.onload = e => { 
+                const img = document.getElementById('pImg'); img.src = e.target.result; 
+                img.style.display = 'block'; document.getElementById('pIco').style.display = 'none'; 
+            };
+            r.readAsDataURL(i.files[0]);
+        }
+
+        function handleSearch(e) {
+            if(e.key === 'Enter') {
+                let q = document.getElementById('searchInput').value;
+                addToHistory('Search: ' + q, 'Global Link');
+                window.location.href = "https://www.google.com/search?q=" + encodeURIComponent(q);
+            }
+        }
+
+        function addToHistory(t, u) {
+            hist.unshift({t, u, time: new Date().toLocaleTimeString()});
+            document.getElementById('historyList').innerHTML = hist.map(i => `
+                <div class="history-item">
+                    <i class="fa-solid fa-bolt" style="color:var(--accent); font-size:12px;"></i>
+                    <div style="flex:1">
+                        <p style="font-weight:700; font-size:14px; letter-spacing:1px;">${i.t}</p>
+                        <p style="font-size:10px; color:#555; font-family:'Orbitron'">${i.u} // ${i.time}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addTile() {
+            let n = prompt("ENTER APP NAME:");
+            let u = prompt("ENTER URL:");
+            if(n && u) {
+                let link = u.startsWith('http') ? u : 'https://' + u;
+                document.getElementById('mainGrid').insertAdjacentHTML('beforeend', `<a href="${link}" class="tile"><i class="fa-solid fa-link"></i><span>${n}</span></a>`);
+            }
+        }
+
+        function changeTheme() {
+            const colors = ['#ff003c', '#00f2ff', '#00ff88', '#ffae00', '#e000ff'];
+            const current = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+            const next = colors[(colors.indexOf(current) + 1) % colors.length];
+            document.documentElement.style.setProperty('--accent', next);
+        }
+    </script>
+</body>
+</html>
